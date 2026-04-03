@@ -17,5 +17,23 @@
     ],
     "created": "2026-04-04",
     "updated": "2026-04-04"
+  },
+  "cpp/smart-pointers/untitled.md": {
+    "title": "智能指针总览",
+    "domain": "cpp",
+    "subdomain": "smart-pointers",
+    "tags": [
+      "c++11",
+      "cpp",
+      "memory-management",
+      "overview",
+      "shared-ptr",
+      "smart-pointer",
+      "smart-pointers",
+      "unique-ptr",
+      "weak-ptr"
+    ],
+    "created": "2026-04-04",
+    "updated": "2026-04-04"
   }
 }
