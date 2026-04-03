@@ -1,0 +1,230 @@
+domains:
+  cpp:
+    display_name: C++
+    domain_keywords:
+    - c++
+    - cpp
+    - std
+    - stl
+    - gcc
+    - clang
+    - msvc
+    - iostream
+    - namespace
+    - constexpr
+    subdomains:
+      concurrency:
+        keywords:
+        - thread
+        - mutex
+        - atomic
+        - async
+        - future
+        - promise
+        - lock
+        - condition-variable
+      memory:
+        keywords:
+        - pointer
+        - smart-pointer
+        - allocator
+        - heap
+        - stack
+        - raii
+        - unique-ptr
+        - shared-ptr
+        - memory-model
+        - new
+        - delete
+      modern-cpp:
+        keywords:
+        - c++17
+        - c++20
+        - c++23
+        - module
+        - coroutine
+        - lambda
+        - auto
+        - structured-binding
+        - span
+      stl:
+        keywords:
+        - vector
+        - map
+        - algorithm
+        - iterator
+        - container
+        - string
+        - set
+        - unordered-map
+        - ranges
+      templates:
+        keywords:
+        - template
+        - sfinae
+        - concepts
+        - constexpr
+        - variadic
+        - metaprogramming
+        - type-traits
+  graphics:
+    display_name: Graphics Programming
+    domain_keywords:
+    - graphics
+    - gpu
+    - rendering
+    - shader
+    - rasterization
+    - ray-tracing
+    subdomains:
+      directx:
+        keywords:
+        - d3d
+        - directx
+        - hlsl
+        - dxgi
+        - d3d12
+        - root-signature
+        - pso
+      fundamentals:
+        keywords:
+        - rasterization
+        - ray-tracing
+        - pipeline
+        - vertex
+        - fragment
+        - transform
+        - matrix
+        - projection
+        - clipping
+        - culling
+      opengl:
+        keywords:
+        - opengl
+        - glsl
+        - framebuffer
+        - vao
+        - vbo
+        - uniform
+      shading:
+        keywords:
+        - pbr
+        - brdf
+        - ambient-occlusion
+        - gi
+        - global-illumination
+        - shadow
+        - ssao
+        - ssr
+      vulkan:
+        keywords:
+        - vulkan
+        - vk
+        - descriptor
+        - command-buffer
+        - swapchain
+        - pipeline-layout
+        - render-pass
+  unreal-engine:
+    display_name: Unreal Engine
+    domain_keywords:
+    - ue
+    - unreal
+    - epic
+    - uobject
+    - blueprint
+    - actor
+    - pawn
+    - slate
+    - umg
+    subdomains:
+      animation:
+        keywords:
+        - anim
+        - montage
+        - blend
+        - skeleton
+        - pose
+        - anim-bp
+        - state-machine
+        - ik
+      blueprint:
+        keywords:
+        - blueprint
+        - bp
+        - node
+        - graph
+        - kismet
+        - visual-scripting
+      core:
+        keywords:
+        - uobject
+        - gc
+        - reflection
+        - serialization
+        - module
+        - plugin
+        - delegate
+        - multicast
+        - tarray
+        - tmap
+        - fstring
+        - fname
+      editor:
+        keywords:
+        - editor
+        - widget
+        - slate
+        - detail-panel
+        - property
+        - customization
+        - toolbar
+        - menu
+        - asset-editor
+      gameplay:
+        keywords:
+        - actor
+        - component
+        - game-mode
+        - player
+        - pawn
+        - character
+        - ability
+        - gas
+        - gameplay-tag
+        - subsystem
+        - game-instance
+      networking:
+        keywords:
+        - replication
+        - rpc
+        - net
+        - server
+        - client
+        - net-driver
+        - channel
+      physics:
+        keywords:
+        - physics
+        - collision
+        - chaos
+        - rigid-body
+        - constraint
+        - trace
+        - overlap
+      rendering:
+        keywords:
+        - render
+        - shader
+        - material
+        - light
+        - scene-view
+        - viewport
+        - post-process
+        - lumen
+        - nanite
+        - mesh
+        - texture
+        - buffer
+        - rhi
+        - scene-proxy
