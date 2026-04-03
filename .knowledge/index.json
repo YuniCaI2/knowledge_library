@@ -52,5 +52,22 @@
     ],
     "created": "2026-04-04",
     "updated": "2026-04-04"
+  },
+  "cpp/smart-pointers/shared-ptr-weak-ptr.md": {
+    "title": "shared_ptr 与 weak_ptr 介绍与示例",
+    "domain": "cpp",
+    "subdomain": "smart-pointers",
+    "tags": [
+      "circular-reference",
+      "cpp",
+      "example",
+      "node",
+      "reference-counting",
+      "shared-ptr",
+      "smart-pointer",
+      "weak-ptr"
+    ],
+    "created": "2026-04-04",
+    "updated": "2026-04-04"
   }
 }
