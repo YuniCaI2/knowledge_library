@@ -35,5 +35,22 @@
     ],
     "created": "2026-04-04",
     "updated": "2026-04-04"
+  },
+  "cpp/smart-pointers/unique-ptr.md": {
+    "title": "unique_ptr 介绍与示例",
+    "domain": "cpp",
+    "subdomain": "smart-pointers",
+    "tags": [
+      "cpp",
+      "example",
+      "exclusive-ownership",
+      "memory-management",
+      "smart-pointer",
+      "unique-ptr",
+      "widget",
+      "zero-overhead"
+    ],
+    "created": "2026-04-04",
+    "updated": "2026-04-04"
   }
 }
