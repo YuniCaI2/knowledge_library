@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowledge Vault — 知识图谱</title>
+<style>
+:root { --sb-width: 520px; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d1117; color: #c9d1d9; overflow: hidden;
+}
+#app { display: flex; height: 100vh; }
+#graph-container { flex: 1; position: relative; min-width: 200px; }
+svg { width: 100%; height: 100%; }
+
+/* ── Sidebar ── */
+#sidebar {
+  width: var(--sb-width); max-width: 70vw; background: #161b22;
+  border-left: 1px solid #30363d; display: none; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+#sidebar.open { display: flex; }
+#resize-handle {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+  cursor: col-resize; z-index: 30; background: transparent;
+}
+#resize-handle:hover, #resize-handle.active { background: #58a6ff; }
+#sidebar-header {
+  padding: 16px 20px; border-bottom: 1px solid #30363d;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  position: sticky; top: 0; background: #161b22; z-index: 10; gap: 12px;
+}
+#sidebar-header h2 {
+  font-size: 17px; color: #f0f6fc; margin: 0; line-height: 1.4;
+  flex: 1; word-break: break-word;
+}
+.header-btns { display: flex; gap: 4px; flex-shrink: 0; }
+.header-btn {
+  background: none; border: none; color: #8b949e; cursor: pointer;
+  font-size: 16px; padding: 4px 8px; border-radius: 4px; line-height: 1;
+}
+.header-btn:hover { background: #30363d; color: #f0f6fc; }
+#sidebar-scroll { overflow-y: auto; flex: 1; }
+#sidebar-content { padding: 20px; }
+
+/* ── Meta ── */
+.meta-section { margin-bottom: 16px; }
+.meta-row { display: flex; margin-bottom: 6px; font-size: 13px; align-items: flex-start; }
+.meta-label { color: #8b949e; width: 72px; flex-shrink: 0; padding-top: 1px; }
+.meta-value { color: #c9d1d9; flex: 1; }
+.tag {
+  display: inline-block; background: #1f3a5f; color: #58a6ff;
+  padding: 2px 8px; border-radius: 12px; font-size: 11px; margin: 2px 4px 2px 0;
+  cursor: pointer; transition: background 0.15s;
+}
+.tag:hover { background: #264d7d; }
+.status-badge {
+  display: inline-block; padding: 2px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600;
+}
+.status-draft { background: #3d2e00; color: #d29922; }
+.status-review { background: #1c2d4f; color: #58a6ff; }
+.status-solid { background: #1a3a1a; color: #3fb950; }
+
+/* ── Markdown content ── */
+.md-content {
+  font-size: 13px; line-height: 1.8; border-top: 1px solid #21262d;
+  padding-top: 16px; margin-top: 16px;
+}
+.md-content h1 { font-size: 20px; color: #f0f6fc; margin: 20px 0 10px; border-bottom: 1px solid #21262d; padding-bottom: 6px; }
+.md-content h2 { font-size: 16px; color: #f0f6fc; margin: 18px 0 8px; }
+.md-content h3 { font-size: 14px; color: #e6edf3; margin: 14px 0 6px; }
+.md-content p { margin: 8px 0; }
+.md-content ul, .md-content ol { margin: 8px 0; padding-left: 24px; }
+.md-content li { margin: 4px 0; }
+.md-content li::marker { color: #484f58; }
+.md-content code {
+  background: #1c2128; padding: 2px 6px; border-radius: 4px;
+  font-family: 'SF Mono', Monaco, 'Fira Code', monospace; font-size: 12px;
+  color: #e6edf3;
+}
+.md-content pre {
+  background: #0d1117; border: 1px solid #21262d; border-radius: 6px;
+  padding: 12px 16px; margin: 12px 0; overflow-x: auto;
+}
+.md-content pre code { background: none; padding: 0; font-size: 12px; color: #c9d1d9; }
+.md-content blockquote {
+  border-left: 3px solid #30363d; padding-left: 12px; margin: 8px 0;
+  color: #8b949e;
+}
+.md-content a { color: #58a6ff; text-decoration: none; }
+.md-content a:hover { text-decoration: underline; }
+.md-content strong { color: #e6edf3; }
+.md-content em { color: #c9d1d9; font-style: italic; }
+.md-content hr { border: none; border-top: 1px solid #21262d; margin: 16px 0; }
+
+/* ── Related nodes ── */
+.related-section {
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid #21262d;
+}
+.related-section h3 { font-size: 13px; color: #8b949e; margin-bottom: 10px; }
+.related-item {
+  display: flex; align-items: center; padding: 6px 10px; margin: 3px 0;
+  border-radius: 6px; cursor: pointer; font-size: 12px; gap: 8px;
+  transition: background 0.15s;
+}
+.related-item:hover { background: #21262d; }
+.related-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.related-label { flex: 1; color: #c9d1d9; }
+.related-type { color: #484f58; font-size: 11px; }
+
+/* ── Domain/subdomain list view ── */
+.entry-list { list-style: none; padding: 0; }
+.entry-list-item {
+  padding: 10px 12px; margin: 4px 0; border-radius: 6px;
+  cursor: pointer; transition: background 0.15s; border: 1px solid transparent;
+}
+.entry-list-item:hover { background: #21262d; border-color: #30363d; }
+.entry-list-title { font-size: 13px; color: #e6edf3; margin-bottom: 4px; }
+.entry-list-meta { font-size: 11px; color: #484f58; }
+
+/* ── Controls ── */
+#controls {
+  position: absolute; top: 16px; left: 16px; z-index: 20;
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+#controls input, #controls select {
+  background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+  padding: 6px 12px; border-radius: 6px; font-size: 13px; outline: none;
+}
+#controls input:focus, #controls select:focus { border-color: #58a6ff; }
+#controls input { width: 240px; }
+#stats {
+  position: absolute; bottom: 16px; left: 16px; font-size: 12px;
+  color: #484f58; z-index: 20;
+}
+.legend {
+  position: absolute; bottom: 16px; right: 16px; z-index: 20;
+  background: #161b22ee; border: 1px solid #30363d; border-radius: 8px;
+  padding: 12px 16px; font-size: 12px;
+}
+.legend-item { display: flex; align-items: center; margin: 4px 0; cursor: pointer; }
+.legend-item:hover { color: #f0f6fc; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; flex-shrink: 0; }
+.node-label { font-size: 10px; fill: #8b949e; pointer-events: none; text-anchor: middle; }
+.link { stroke-opacity: 0.25; }
+.tooltip {
+  position: absolute; background: #1c2128ee; border: 1px solid #30363d;
+  padding: 8px 12px; border-radius: 6px; font-size: 12px;
+  pointer-events: none; opacity: 0; transition: opacity 0.15s;
+  max-width: 300px; z-index: 100;
+}
+/* highlight ring on selected node */
+.node-highlight { stroke: #f0f6fc; stroke-width: 2.5; stroke-opacity: 0.9; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="graph-container">
+    <div id="controls">
+      <input type="text" id="search" placeholder="搜索节点 (标题 / 标签 / 领域)...">
+      <select id="domain-filter"><option value="">所有领域</option></select>
+    </div>
+    <svg id="graph"></svg>
+    <div id="stats"></div>
+    <div class="legend" id="legend"></div>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+  <div id="sidebar">
+    <div id="resize-handle"></div>
+    <div id="sidebar-header">
+      <h2 id="entry-title">—</h2>
+      <div class="header-btns">
+        <button class="header-btn" id="close-btn" title="关闭">&times;</button>
+      </div>
+    </div>
+    <div id="sidebar-scroll">
+      <div id="sidebar-content"></div>
+    </div>
+  </div>
+</div>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const graphData = {"nodes": [{"id": "domain:cpp", "label": "Cpp", "type": "domain", "domain": "cpp", "subdomain": null, "tags": [], "path": null}, {"id": "sub:cpp/smart-pointers", "label": "Smart Pointers", "type": "subdomain", "domain": "cpp", "subdomain": "smart-pointers", "tags": [], "path": null}, {"id": "domain:unreal-engine", "label": "Unreal Engine", "type": "domain", "domain": "unreal-engine", "subdomain": null, "tags": [], "path": null}, {"id": "sub:unreal-engine/rendering", "label": "Rendering", "type": "subdomain", "domain": "unreal-engine", "subdomain": "rendering", "tags": [], "path": null}, {"id": "entry:cpp/smart-pointers/shared-ptr-weak-ptr.md", "label": "shared_ptr 与 weak_ptr 介绍与示例", "type": "entry", "domain": "cpp", "subdomain": "smart-pointers", "tags": ["circular-reference", "cpp", "example", "node", "reference-counting", "shared-ptr", "smart-pointer", "weak-ptr"], "path": "cpp/smart-pointers/shared-ptr-weak-ptr.md", "created": "2026-04-04", "updated": "2026-04-04", "status": "draft", "content": "# shared_ptr 与 weak_ptr 介绍与示例\n\n# std::shared_ptr<T> 与 std::weak_ptr<T>\n\n## std::shared_ptr<T> — 共享所有权的智能指针\n\n### 简介\n\n`shared_ptr` 通过**引用计数**机制实现共享所有权。多个 shared_ptr 可以指向同一个对象，最后一个 shared_ptr 销毁时对象被自动删除。\n\n### 内部结构\n\n```\n┌─────────────┐     ┌──────────────────┐     ┌──────────┐\n│ shared_ptr A │────▶│  Control Block   │────▶│   对象 T  │\n│ shared_ptr B │────▶│  ┌────────────┐  │     └──────────┘\n│ shared_ptr C │────▶│  │ strong_cnt │  │\n│                │     │  │ weak_cnt   │  │\n│                │     │  │ deleter    │  │\n│                │     │  │ allocator  │  │\n│                │     │  └────────────┘  │\n└─────────────────┘     └──────────────────┘\n```\n\n- **控制块 (Control Block)** 存储引用计数、弱引用计数、删除器、分配器\n- **strong count == 0 时销毁对象，weak count == 0 时销毁控制块**\n- 引用计数的增减是**原子操作**（线程安全但有开销）\n\n### 基本用法\n\n```cpp\n#include <memory>\n#include <iostream>\n\n// 创建\nauto sp1 = std::make_shared<std::string>(\"Hello\");  // 推荐！一次分配\nauto sp2 = std::shared_ptr<std::string>(new std::string(\"Hello\")); // 两次分配\n\n// 拷贝（引用计数 +1）\nauto sp3 = sp1;          // strong_count: 2\n{\n    auto sp4 = sp1;      // strong_count: 3\n} // sp4 离开作用域，strong_count: 2\n\n// 查看引用计数\nstd::cout << sp1.use_count() << std::endl;  // 输出: 2\n\n// 检查是否唯一拥有\nif (sp1.unique()) { /* ... */ }\n\n// 重置\nsp3.reset();             // strong_count: 1\n```\n\n### ⚠️ 坑点与最佳实践\n\n```cpp\n// ====== 坑 1：同一裸指针给两个 shared_ptr =======\nint* raw = new int(42);\nauto bad1 = std::shared_ptr<int>(raw);\nauto bad2 = std::shared_ptr<int>(raw);  // ❌ 双重 delete！崩溃！\n\n// 解决：始终从第一个 shared_ptr 拷贝\nauto good1 = std::shared_ptr<int>(new int(42));\nauto good2 = good1;  // ✅ 共享控制块\n// 或者直接都用 make_shared\n\n// ====== 坑 2：this 指针问题 =======\nstruct Node {\n    std::shared_ptr<Node> parent;\n    std::shared_ptr<Node> child;\n    \n    void set_child(std::shared_ptr<Node> c) {\n        child = c;\n        c->parent = /* ??? */;  // 不能传 this！\n    }\n};\n\n// 正确做法：继承 enable_shared_from_this\nstruct Node : std::enable_shared_from_this<Node> {\n    std::shared_ptr<Node> parent;\n    std::shared_ptr<Node> child;\n    \n    void set_child(std::shared_ptr<Node> c) {\n        child = c;\n        c->parent = shared_from_this();  // ✅ 返回 managing this 的 shared_ptr\n    }\n};\n\n// ====== 坑 3：循环引用导致内存泄漏 =======\nstruct A { std::shared_ptr<B> b; };  // ❌\nstruct B { std::shared_ptr<A> a; };  // ❌ 循环引用\n\nauto a = std::make_shared<A>();\nauto b = std::make_shared<B>();\na->b = b;   // a.ref=2, b.ref=2\nb->a = a;   // a.ref=2, b.ref=2  永远不会归零！\n\n// ====== 性能注意 =======\n// make_shared vs 直接构造：\n// - make_shared: 一次内存分配（对象+控制块连续），但不能提前释放对象内存\n// - new + shared_ptr 构造：两次分配，但对象可以和 weak_count 一起释放\n```\n\n### 自定义删除器与分配器\n\n```cpp\n// 自定义删除器（不像 unique_ptr 影响类型）\nauto deleter = [](MyObj* p) { \n    p->cleanup(); \n    delete p; \n};\nstd::shared_ptr<MyObj> sp(new MyObj(), deleter);\n// shared_ptr 的删除器不影响类型！不同删除器的 shared_ptr 可以互相赋值\n\n// 别名构造函数：共享所有权但指向不同对象\nstruct Base { int x; };\nderived : public Base { int y; };\n\nauto derived_sp = std::make_shared<Derived>();\nauto base_alias = std::shared_ptr<Base>(derived_sp, derived_sp.get());\n// base_alias 和 derived_sp 共享控制块，但 base_alias 指向 Base 子对象\n```\n\n---\n\n## std::weak_ptr<T> — 弱引用智能指针\n\n### 简介\n\n`weak_ptr` 是 `shared_ptr` 的观察者 companion。它**不增加强引用计数**，不拥有对象，因此不影响对象的生命周期。用于打破循环引用或实现缓存模式。\n\n### 基本用法\n\n```cpp\n#include <memory>\n#include <iostream>\n\nstd::weak_ptr<int> wp;\n\n{\n    auto sp = std::make_shared<int>(42);\n    wp = sp;                    // weak_count: 1, strong_count: 1\n    \n    // weak_ptr 不能直接解引用，必须 lock() 提升为 shared_ptr\n    if (auto locked = wp.lock()) {\n        std::cout << *locked << std::endl;  // 输出: 42，对象还活着\n    }\n    \n    std::cout << wp.expired() << std::endl;  // false，对象仍存在\n} // sp 销毁，strong_count -> 0，对象被删除\n\nstd::cout << wp.expired() << std::endl;  // true，对象已死\nif (auto locked = wp.lock()) {\n    // 不会进入这里，lock() 返回空 shared_ptr\n}\n```\n\n### 典型应用场景\n\n```cpp\n// ====== 场景 1：打破循环引用 =======\n// \"拥有\"关系用 shared_ptr，“知道”关系用 weak_ptr\nstruct Student {\n    std::string name;\n};\n\nstruct Course {\n    std::string name;\n    std::vector<std::shared_ptr<Student>> students;  // 课程拥有学生列表\n};\n\nstruct Student {\n    std::string name;\n    std::vector<std::weak_ptr<Course>> courses;  // 学生只是\"知道\"选了哪些课\n};                                                   // 避免循环引用\n\n// ====== 场景 2：观察者模式 / 缓存 =======\ntemplate<typename Key, typename Value>\nclass Cache {\npublic:\n    void put(const Key& k, std::shared_ptr<Value> v) {\n        cache_[k] = v;  // weak_ptr 不阻止外部释放\n    }\n    \n    std::shared_ptr<Value> get(const Key& k) {\n        auto it = cache_.find(k);\n        if (it != cache_.end() && !it->second.expired()) {\n            return it->second.lock();  // 对象还在就复用\n        }\n        return nullptr;  // 已过期或不存在\n    }\n    \nprivate:\n    std::unordered_map<Key, std::weak_ptr<Value>> cache_;\n};\n\n// ====== 场景 3：对象查找表 =======\n// 当你需要一个全局注册表但不希望阻止对象被销毁时\nstd::unordered_map<int, std::weak_ptr<Resource>> resource_registry;\n\nint register_resource(std::shared_ptr<Resource> res) {\n    int id = next_id++;\n    resource_registry[id] = res;  // 注册但不延长生命周期\n    return id;\n}\n```\n\n### 关键 API\n\n| 方法 | 说明 |\n|---|---|\n| `lock()` | 尝试提升为 `shared_ptr`，若对象已销毁则返回空 |\n| `expired()` | 检查所观察的对象是否已被销毁 |\n| `use_count()` | 返回对应的 `shared_ptr` 引用计数（0 表示已过期） |\n| `reset()` | 释放对对象的观察 |\n\n---\n\n## 总结：三者选择指南\n\n| 场景 | 选择 | 原因 |\n|---|---|---|\n| 函数内部临时对象 | `unique_ptr` | 默认首选，零开销 |\n| 所有权在函数间传递 | `unique_ptr` + move | 明确表达所有权转移 |\n| 对象需要被多处共享 | `shared_ptr` | 引用计数自动管理生命周期 |\n| 可能形成引用环 | 一端改 `weak_ptr` | 避免内存泄漏 |\n| 观察者 / 缓存 | `weak_ptr` | 不影响被观察对象生命周期 |\n| 包装 C API 资源 | `unique_ptr` + 删除器 | 精确控制清理逻辑 |"}, {"id": "entry:cpp/smart-pointers/untitled.md", "label": "智能指针总览", "type": "entry", "domain": "cpp", "subdomain": "smart-pointers", "tags": ["c++11", "cpp", "memory-management", "overview", "shared-ptr", "smart-pointer", "smart-pointers", "unique-ptr", "weak-ptr"], "path": "cpp/smart-pointers/untitled.md", "created": "2026-04-04", "updated": "2026-04-04", "status": "draft", "content": "# 智能指针总览\n\n# C++ 智能指针 (Smart Pointers)\n\n## 概览\n\nC++11 引入的智能指针模板类，定义在 `<memory>` 头文件中，用于自动管理堆对象的生命周期，避免内存泄漏。\n\n## 三大智能指针\n\n| 指针 | 所有权模型 | 可拷贝 | 核心场景 |\n|---|---|---|---|\n| `std::unique_ptr<T>` | 独占所有权 | ❌ 不可拷贝，可移动 | **默认首选**，零开销抽象 |\n| `std::shared_ptr<T>` | 共享所有权（引用计数） | ✅ 可拷贝 | 多个所有者持有同一对象 |\n| `std::weak_ptr<T>` | 弱引用（不增加计数） | ✅ 可拷贝 | 打破 shared_ptr 循环引用，观察者模式 |\n\n## 决策树\n\n```\n需要指针？\n├─ 对象可以放在栈上？ → 别用指针，直接值语义\n├─ 需要动态分配？\n│  ├─ 只有一个所有者？ → unique_ptr （首选）\n│  ├─ 多个所有者？     → shared_ptr\n│  └─ 可能存在环？      → 其中一端用 weak_ptr\n└─ 需要 C API 互操作？  → unique_ptr + 自定义删除器\n```\n\n## 核心原则\n\n1. **永远用 `make_unique` / `make_shared`**，不要手动 `new`\n2. **默认用 unique_ptr**，只在需要共享时升级到 shared_ptr\n3. **避免循环引用** —— 所有关系用 shared_ptr，知道关系用 weak_ptr\n4. **不要把同一个裸指针交给多个智能指针管理**\n5. **unique_ptr 是 zero-cost abstraction** —— 编译后等价于裸指针 + 析构时 delete"}, {"id": "entry:cpp/smart-pointers/unique-ptr.md", "label": "unique_ptr 介绍与示例", "type": "entry", "domain": "cpp", "subdomain": "smart-pointers", "tags": ["cpp", "example", "exclusive-ownership", "memory-management", "smart-pointer", "unique-ptr", "widget", "zero-overhead"], "path": "cpp/smart-pointers/unique-ptr.md", "created": "2026-04-04", "updated": "2026-04-04", "status": "draft", "content": "# unique_ptr 介绍与示例\n\n# std::unique_ptr<T>\n\n## 简介\n\n`std::unique_ptr` 是**独占所有权**的智能指针。同一时间只有一个 unique_ptr 可以指向某个对象，当 unique_ptr 被销毁时，它所管理的对象也被自动删除。\n\n## 特性\n\n- **独占语义**：不可拷贝（deleted copy constructor/assignment），只能 `std::move`\n- **零开销**：编译后与裸指针 +析构函数 delete 等价，无额外内存/性能开销\n- **轻量级**：通常就是一个裸指针的大小\n\n## 基本用法\n\n```cpp\n#include <memory>\n#include <iostream>\n\n// 创建（C++14 起）\nauto p1 = std::make_unique<int>(42);        // 单对象\nauto p2 = std::make_unique<int[]>(10);       // 数组（C++20 起支持 make_unique<T[]>）\n\n// 访问\nstd::cout << *p1 << std::endl;    // 解引用：42\nstd::cout << p1.get() << std::endl; // 获取原始指针\n\n// 所有权转移\nauto p3 = std::move(p1);   // p1 变为 nullptr，p3 接管对象\n// 此时 p1 不再有效！\n\n// 重置\np3.reset();               // 手动释放，p3 变为 nullptr\np3 = nullptr;              // 等价于 reset()\n\n// 释放 ownership，返回裸指针（需自行负责 delete！）\nint* raw = p3.release();\n```\n\n## 自定义删除器\n\n```cpp\n// 管理 C 风格资源\nauto file_closer = [](FILE* f) { if (f) fclose(f); };\nusing UniqueFile = std::unique_ptr<FILE, decltype(file_closer)>;\n\nUniqueFile file(fopen(\"data.txt\", \"r\"), file_closer);\n// 离开作用域时自动 fclose\n\n// 更通用的写法（C++23 起可用 std::unique_ptr 的推导指南简化）\n```\n\n## 数组版本\n\n```cpp\n// C++20: make_unique 支持数组\nauto arr = std::make_unique<int[]>(10);\narr[0] = 1;           // operator[] 支持\n// 离开作用域时自动 delete[]\n```\n\n## 常见模式\n\n```cpp\n// PIMPL (Pointer to Implementation) 惯用法\nclass Widget {\npublic:\n    Widget();\n    ~Widget();\nprivate:\n    struct Impl;\n    std::unique_ptr<Impl> pImpl;\n};\n\n// 工厂函数返回 unique_ptr\nclass Base { public: virtual ~Base() = default; };\nclass Derived : public Base {};\n\nstd::unique_ptr<Base> create() {\n    return std::make_unique<Derived>();  // 向上转型 OK\n}\n\n// 容器存储多态对象\nstd::vector<std::unique_ptr<Base>> objects;\nobjects.push_back(std::make_unique<Derived>());\n```\n\n## 注意事项\n\n1. **不要对同一裸指针创建两个 unique_ptr** → 双重 free\n2. **move 后原指针为 nullptr**，不要再使用它\n3. **`get()` 返回的裸指针不转移所有权**，unique_ptr 仍会 delete 它\n4. **unique_ptr 大小取决于删除器类型**——无状态删除器不增加大小"}, {"id": "entry:unreal-engine/rendering/i-scene-view-extension.md", "label": "ISceneViewExtension 用法指南", "type": "entry", "domain": "unreal-engine", "subdomain": "rendering", "tags": ["C++", "FAutoRegister", "ISceneViewExtension", "SceneViewExtension", "UE5", "scene-proxy", "scene-view", "viewport", "后处理", "渲染管线"], "path": "unreal-engine/rendering/i-scene-view-extension.md", "created": "2026-04-04", "updated": "2026-04-04", "status": "draft", "content": "# ISceneViewExtension 用法指南\n\n# ISceneViewExtension 用法指南\n\n## 概述\n\n`ISceneViewExtension` 是 Unreal Engine 提供的一套接口，允许开发者在**不修改引擎源码**的情况下，向渲染管线的后处理特定阶段插入自定义 Pass。\n\n### 核心限制\n- **仅支持延迟渲染路径（Deferred Shading）**，Mobile 平台不支持\n- 可在以下 4 个后处理 Pass 之后插入回调：\n  1. `MotionBlur`（运动模糊）\n  2. `Tonemap`（色调映射）\n  3. `FXAA`（快速近似抗锯齿）\n  4. `VisualizeDepthOfField`（景深可视化）\n\n---\n\n## 完整使用步骤\n\n### Step 1：创建扩展类\n\n继承 `FSceneViewExtensionBase`，**构造函数第一个参数必须是 `FAutoRegister`**："}], "links": [{"source": "domain:cpp", "target": "sub:cpp/smart-pointers", "type": "hierarchy"}, {"source": "domain:unreal-engine", "target": "sub:unreal-engine/rendering", "type": "hierarchy"}, {"source": "sub:cpp/smart-pointers", "target": "entry:cpp/smart-pointers/shared-ptr-weak-ptr.md", "type": "hierarchy"}, {"source": "sub:cpp/smart-pointers", "target": "entry:cpp/smart-pointers/untitled.md", "type": "hierarchy"}, {"source": "sub:cpp/smart-pointers", "target": "entry:cpp/smart-pointers/unique-ptr.md", "type": "hierarchy"}, {"source": "sub:unreal-engine/rendering", "target": "entry:unreal-engine/rendering/i-scene-view-extension.md", "type": "hierarchy"}, {"source": "entry:cpp/smart-pointers/shared-ptr-weak-ptr.md", "target": "entry:cpp/smart-pointers/untitled.md", "type": "tag-shared"}, {"source": "entry:cpp/smart-pointers/shared-ptr-weak-ptr.md", "target": "entry:cpp/smart-pointers/unique-ptr.md", "type": "tag-shared"}, {"source": "entry:cpp/smart-pointers/untitled.md", "target": "entry:cpp/smart-pointers/unique-ptr.md", "type": "tag-shared"}]};
+
+// ──── Color ────
+const domainColors = {};
+const palette = ['#58a6ff','#3fb950','#d29922','#f85149','#bc8cff','#79c0ff','#56d364','#e3b341','#ff7b72','#d2a8ff'];
+const allDomains = [...new Set(graphData.nodes.filter(n=>n.domain).map(n=>n.domain))].sort();
+allDomains.forEach((d,i) => { domainColors[d] = palette[i % palette.length]; });
+
+// ──── Legend ────
+const legendEl = document.getElementById('legend');
+allDomains.forEach(d => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = '<div class="legend-dot" style="background:'+domainColors[d]+'"></div>'+d;
+  item.onclick = () => { document.getElementById('domain-filter').value = d; document.getElementById('domain-filter').onchange(); };
+  legendEl.appendChild(item);
+});
+
+// ──── Filter ────
+const filterEl = document.getElementById('domain-filter');
+allDomains.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; filterEl.appendChild(o); });
+
+// ──── Stats ────
+const entryCount = graphData.nodes.filter(n=>n.type==='entry').length;
+document.getElementById('stats').textContent = entryCount + ' 个知识条目 · ' + graphData.links.length + ' 条关联';
+
+// ──── SVG ────
+const svg = d3.select('#graph');
+let W = document.getElementById('graph-container').clientWidth;
+let H = document.getElementById('graph-container').clientHeight;
+const g = svg.append('g');
+const zoomBehavior = d3.zoom().scaleExtent([0.05, 10]).on('zoom', e => g.attr('transform', e.transform));
+svg.call(zoomBehavior);
+
+// ──── Simulation ────
+const sim = d3.forceSimulation(graphData.nodes)
+  .force('link', d3.forceLink(graphData.links).id(d=>d.id).distance(d => {
+    if (d.source.subdomain && d.source.subdomain === d.target.subdomain) return 50;
+    if (d.source.domain === d.target.domain) return 90;
+    return 150;
+  }).strength(d => d.type === 'hierarchy' ? 0.7 : 0.15))
+  .force('charge', d3.forceManyBody().strength(d => d.type==='domain'? -400 : d.type==='subdomain'? -200 : -120))
+  .force('center', d3.forceCenter(W/2, H/2))
+  .force('collision', d3.forceCollide().radius(d => R(d)+6));
+
+function R(d) { return d.type==='domain'? 20 : d.type==='subdomain'? 13 : 7; }
+
+// ──── Links ────
+const link = g.append('g').selectAll('line').data(graphData.links).enter().append('line')
+  .attr('class','link')
+  .attr('stroke', d => { const s = typeof d.source==='object'?d.source:graphData.nodes.find(n=>n.id===d.source); return domainColors[s?.domain]||'#30363d'; })
+  .attr('stroke-width', d => d.type==='hierarchy'? 1.5 : 0.7);
+
+// ──── Nodes ────
+const node = g.append('g').selectAll('g').data(graphData.nodes).enter().append('g')
+  .call(d3.drag()
+    .on('start',(e,d)=>{if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
+    .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;})
+    .on('end',(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;})
+  );
+
+const circles = node.append('circle')
+  .attr('r', d=>R(d))
+  .attr('fill', d=>domainColors[d.domain]||'#484f58')
+  .attr('stroke', d=>d.type==='domain'?'#f0f6fc':'transparent')
+  .attr('stroke-width', d=>d.type==='domain'?2:0)
+  .attr('opacity', d=>d.type==='entry'?0.85:1)
+  .style('cursor','pointer');
+
+node.append('text')
+  .attr('class','node-label')
+  .attr('dy', d=>R(d)+14)
+  .text(d=> d.label.length>22 ? d.label.slice(0,20)+'...' : d.label)
+  .style('font-size', d=>d.type==='domain'?'12px':d.type==='subdomain'?'10px':'9px')
+  .style('fill', d=>d.type==='domain'?'#f0f6fc':'#8b949e');
+
+// ──── Tooltip ────
+const tooltip = document.getElementById('tooltip');
+node.on('mouseover',(e,d)=>{
+  let html = '<strong>'+d.label+'</strong>';
+  if (d.type==='entry') html += '<br><span style="color:#8b949e">'+d.domain+'/'+d.subdomain+'</span>';
+  if (d.tags?.length) html += '<br>🏷️ '+d.tags.slice(0,5).join(', ');
+  tooltip.innerHTML = html; tooltip.style.opacity = 1;
+}).on('mousemove',e=>{
+  tooltip.style.left=(e.pageX+14)+'px'; tooltip.style.top=(e.pageY-14)+'px';
+}).on('mouseout',()=>{ tooltip.style.opacity=0; });
+
+// ──── Node index for fast lookup ────
+const nodeById = {};
+graphData.nodes.forEach(n => { nodeById[n.id] = n; });
+
+// Build adjacency for related nodes
+const neighbors = {};
+graphData.links.forEach(l => {
+  const s = typeof l.source==='object'?l.source.id:l.source;
+  const t = typeof l.target==='object'?l.target.id:l.target;
+  if (!neighbors[s]) neighbors[s] = [];
+  if (!neighbors[t]) neighbors[t] = [];
+  neighbors[s].push({id:t, type:l.type});
+  neighbors[t].push({id:s, type:l.type});
+});
+
+// ──── Selection state ────
+let selectedNode = null;
+
+function selectNode(d) {
+  selectedNode = d;
+  // Remove old highlights
+  circles.classed('node-highlight', false).attr('stroke', nd=>nd.type==='domain'?'#f0f6fc':'transparent')
+    .attr('stroke-width', nd=>nd.type==='domain'?2:0);
+  // Highlight selected
+  circles.filter(nd=>nd.id===d.id).classed('node-highlight', true);
+}
+
+function clearSelection() {
+  selectedNode = null;
+  circles.classed('node-highlight', false).attr('stroke', nd=>nd.type==='domain'?'#f0f6fc':'transparent')
+    .attr('stroke-width', nd=>nd.type==='domain'?2:0);
+}
+
+// ──── Click handler ────
+node.on('click', (e, d) => {
+  e.stopPropagation();
+  selectNode(d);
+  openSidebar(d);
+});
+
+svg.on('click', () => { closeSidebar(); clearSelection(); });
+
+// ──── Double-click: focus on node ────
+node.on('dblclick', (e, d) => {
+  e.stopPropagation();
+  const transform = d3.zoomIdentity.translate(W/2 - d.x*1.5, H/2 - d.y*1.5).scale(1.5);
+  svg.transition().duration(500).call(zoomBehavior.transform, transform);
+});
+
+// ──── Sidebar logic ────
+function openSidebar(d) {
+  const sb = document.getElementById('sidebar');
+  sb.classList.add('open');
+  document.getElementById('entry-title').textContent = d.label;
+  const content = document.getElementById('sidebar-content');
+
+  if (d.type === 'entry') {
+    content.innerHTML = buildEntryView(d);
+  } else if (d.type === 'subdomain') {
+    content.innerHTML = buildSubdomainView(d);
+  } else if (d.type === 'domain') {
+    content.innerHTML = buildDomainView(d);
+  }
+  // Scroll to top
+  document.getElementById('sidebar-scroll').scrollTop = 0;
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+document.getElementById('close-btn').onclick = (e) => { e.stopPropagation(); closeSidebar(); clearSelection(); };
+
+// ──── Build entry detail view ────
+function buildEntryView(d) {
+  let html = '<div class="meta-section">';
+  html += metaRow('路径', '<code>'+esc(d.path||'')+'</code>');
+  html += metaRow('领域', esc(d.domain)+' / '+esc(d.subdomain||''));
+  html += metaRow('创建', esc(d.created||''));
+  html += metaRow('更新', esc(d.updated||''));
+  html += metaRow('状态', '<span class="status-badge status-'+(d.status||'draft')+'">'+(d.status||'draft')+'</span>');
+  if (d.tags?.length) {
+    html += metaRow('标签', d.tags.map(t=>'<span class="tag" onclick="searchTag(\''+esc(t)+'\')">'+esc(t)+'</span>').join(''));
+  }
+  html += '</div>';
+
+  // Rendered markdown content
+  html += '<div class="md-content">' + renderMarkdown(d.content || '(无内容)') + '</div>';
+
+  // Related nodes
+  const rels = (neighbors[d.id]||[]).filter(r => r.id !== d.id);
+  if (rels.length > 0) {
+    html += '<div class="related-section"><h3>📎 关联节点 ('+rels.length+')</h3>';
+    rels.forEach(r => {
+      const rn = nodeById[r.id];
+      if (!rn) return;
+      const color = domainColors[rn.domain] || '#484f58';
+      const typeLabel = r.type === 'hierarchy' ? '层级' : r.type === 'tag-shared' ? '共享标签' : '关联';
+      html += '<div class="related-item" onclick="navigateToNode(\''+esc(r.id)+'\')">'
+        + '<div class="related-dot" style="background:'+color+'"></div>'
+        + '<span class="related-label">'+esc(rn.label)+'</span>'
+        + '<span class="related-type">'+typeLabel+'</span>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+  return html;
+}
+
+// ──── Build subdomain list view ────
+function buildSubdomainView(d) {
+  const entries = graphData.nodes.filter(n => n.type==='entry' && n.domain===d.domain && n.subdomain===d.subdomain);
+  let html = '<div class="meta-section">';
+  html += metaRow('领域', esc(d.domain));
+  html += metaRow('条目数', entries.length+'');
+  html += '</div>';
+  html += '<ul class="entry-list">';
+  entries.sort((a,b)=>(b.updated||'').localeCompare(a.updated||'')).forEach(e => {
+    const color = domainColors[e.domain]||'#484f58';
+    html += '<li class="entry-list-item" onclick="navigateToNode(\''+esc(e.id)+'\')">'
+      + '<div class="entry-list-title"><span style="color:'+color+'">●</span> '+esc(e.label)+'</div>'
+      + '<div class="entry-list-meta">'+esc(e.updated||'')+' · '+(e.tags||[]).slice(0,3).join(', ')+'</div>'
+      + '</li>';
+  });
+  html += '</ul>';
+  return html;
+}
+
+// ──── Build domain list view ────
+function buildDomainView(d) {
+  const subs = graphData.nodes.filter(n => n.type==='subdomain' && n.domain===d.domain);
+  const entries = graphData.nodes.filter(n => n.type==='entry' && n.domain===d.domain);
+  let html = '<div class="meta-section">';
+  html += metaRow('子领域', subs.length+'');
+  html += metaRow('总条目', entries.length+'');
+  html += '</div>';
+  subs.sort((a,b)=>a.label.localeCompare(b.label)).forEach(s => {
+    const subEntries = entries.filter(e => e.subdomain === s.subdomain);
+    html += '<h3 style="margin:16px 0 8px; font-size:14px; color:#e6edf3; cursor:pointer" '
+      + 'onclick="navigateToNode(\''+esc(s.id)+'\')">'
+      + esc(s.label)+' <span style="color:#484f58">('+subEntries.length+')</span></h3>';
+    html += '<ul class="entry-list">';
+    subEntries.sort((a,b)=>(b.updated||'').localeCompare(a.updated||'')).forEach(e => {
+      html += '<li class="entry-list-item" onclick="navigateToNode(\''+esc(e.id)+'\')">'
+        + '<div class="entry-list-title">'+esc(e.label)+'</div>'
+        + '<div class="entry-list-meta">'+esc(e.updated||'')+' · <span class="status-badge status-'+(e.status||'draft')+'">'+(e.status||'draft')+'</span></div>'
+        + '</li>';
+    });
+    html += '</ul>';
+  });
+  return html;
+}
+
+function metaRow(label, value) {
+  return '<div class="meta-row"><span class="meta-label">'+label+'</span><span class="meta-value">'+value+'</span></div>';
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ──── Navigate to node (from sidebar links) ────
+window.navigateToNode = function(id) {
+  const n = nodeById[id];
+  if (!n) return;
+  selectNode(n);
+  openSidebar(n);
+  // Pan to node
+  const transform = d3.zoomIdentity.translate(W/2 - n.x*1.2, H/2 - n.y*1.2).scale(1.2);
+  svg.transition().duration(400).call(zoomBehavior.transform, transform);
+};
+
+// ──── Search by tag ────
+window.searchTag = function(tag) {
+  document.getElementById('search').value = tag;
+  document.getElementById('search').oninput();
+};
+
+// ──── Markdown renderer ────
+function renderMarkdown(md) {
+  // Normalize line endings
+  md = md.replace(/\r\n/g, '\n');
+
+  // Code blocks first (``` ... ```)
+  md = md.replace(/```(\w*)\n([\s\S]*?)```/g, (m, lang, code) => {
+    return '<pre><code>' + esc(code.replace(/\n$/, '')) + '</code></pre>';
+  });
+
+  // Process line by line
+  const lines = md.split('\n');
+  let html = '';
+  let inList = false;
+  let listType = '';
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // Skip if inside a pre block (already handled)
+    if (line.includes('<pre>') || line.includes('</pre>')) { html += line + '\n'; continue; }
+
+    // Headings
+    if (/^### (.+)/.test(line)) { if(inList){html+='</'+listType+'>';inList=false;} html += '<h3>'+inline(line.slice(4))+'</h3>'; continue; }
+    if (/^## (.+)/.test(line)) { if(inList){html+='</'+listType+'>';inList=false;} html += '<h2>'+inline(line.slice(3))+'</h2>'; continue; }
+    if (/^# (.+)/.test(line)) { if(inList){html+='</'+listType+'>';inList=false;} html += '<h1>'+inline(line.slice(2))+'</h1>'; continue; }
+
+    // Horizontal rule
+    if (/^---+$/.test(line.trim())) { if(inList){html+='</'+listType+'>';inList=false;} html += '<hr>'; continue; }
+
+    // Blockquote
+    if (/^>\s?(.*)/.test(line)) { if(inList){html+='</'+listType+'>';inList=false;} html += '<blockquote>'+inline(line.replace(/^>\s?/, ''))+'</blockquote>'; continue; }
+
+    // Unordered list
+    if (/^[-*+]\s+(.+)/.test(line)) {
+      if (!inList || listType !== 'ul') { if(inList) html += '</'+listType+'>'; html += '<ul>'; inList = true; listType = 'ul'; }
+      html += '<li>' + inline(line.replace(/^[-*+]\s+/, '')) + '</li>';
+      continue;
+    }
+
+    // Ordered list
+    if (/^\d+\.\s+(.+)/.test(line)) {
+      if (!inList || listType !== 'ol') { if(inList) html += '</'+listType+'>'; html += '<ol>'; inList = true; listType = 'ol'; }
+      html += '<li>' + inline(line.replace(/^\d+\.\s+/, '')) + '</li>';
+      continue;
+    }
+
+    // Close list if we're in one
+    if (inList && line.trim() === '') { html += '</'+listType+'>'; inList = false; continue; }
+    if (inList && !/^[\s]/.test(line)) { html += '</'+listType+'>'; inList = false; }
+
+    // Empty line → skip (already handled paragraph breaks)
+    if (line.trim() === '') { html += '<br>'; continue; }
+
+    // Normal paragraph
+    html += '<p>' + inline(line) + '</p>';
+  }
+  if (inList) html += '</'+listType+'>';
+  return html;
+}
+
+function inline(text) {
+  // Inline code (must be first to avoid conflicts)
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Bold
+  text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // Italic
+  text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  // Links
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+  return text;
+}
+
+// ──── Search ────
+document.getElementById('search').oninput = function() {
+  const q = this.value.toLowerCase();
+  node.style('opacity', d => {
+    if (!q) return 1;
+    return (d.label.toLowerCase().includes(q) || (d.tags||[]).some(t=>t.toLowerCase().includes(q)) || (d.domain||'').includes(q) || (d.subdomain||'').includes(q)) ? 1 : 0.08;
+  });
+  link.style('opacity', !q ? 0.25 : 0.03);
+};
+
+// ──── Domain filter ────
+filterEl.onchange = function() {
+  const d = this.value;
+  node.style('opacity', n => (!d || n.domain === d) ? 1 : 0.08);
+  link.style('opacity', l => {
+    if (!d) return 0.25;
+    const s = typeof l.source==='object'?l.source:nodeById[l.source];
+    const t = typeof l.target==='object'?l.target:nodeById[l.target];
+    return (s?.domain===d && t?.domain===d) ? 0.25 : 0.03;
+  });
+};
+
+// ──── Resize handle ────
+const handle = document.getElementById('resize-handle');
+let resizing = false;
+handle.onmousedown = (e) => { resizing = true; handle.classList.add('active'); e.preventDefault(); };
+document.onmousemove = (e) => {
+  if (!resizing) return;
+  const newW = window.innerWidth - e.clientX;
+  if (newW > 280 && newW < window.innerWidth * 0.7) {
+    document.getElementById('sidebar').style.width = newW + 'px';
+  }
+};
+document.onmouseup = () => { resizing = false; handle.classList.remove('active'); };
+
+// ──── Tick ────
+sim.on('tick', () => {
+  link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  node.attr('transform', d=>'translate('+d.x+','+d.y+')');
+});
+</script>
+</body>
+</html>
